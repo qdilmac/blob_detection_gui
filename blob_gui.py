@@ -424,45 +424,54 @@ class video_thread(QThread):
             original_vf = QImage(original_vf, original_vf.shape[1], original_vf.shape[0], original_vf.strides[0], QImage.Format_RGB888)
             self.pixmapOriginal.emit(original_vf)
             
-            # -> HSV'ye dönüştürme, maskelenmiş frame'i QLabel'a yazdırma
+           # -> HSV'ye dönüştürme
             hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
             lower = np.array([self.lower_hue, self.lower_sat, self.lower_val])
             upper = np.array([self.upper_hue, self.upper_sat, self.upper_val])
             mask = cv2.inRange(hsv, lower, upper)
-            masked_vf = cv2.bitwise_and(frame, frame, mask=mask)
-            masked_vf = cv2.cvtColor(masked_vf, cv2.COLOR_BGR2RGB)
-            masked_vf = cv2.resize(masked_vf, (391, 281))
-            masked_vf = QImage(masked_vf, masked_vf.shape[1], masked_vf.shape[0], masked_vf.strides[0], QImage.Format_RGB888)
+            
+            # -> Adaptive Thresholding
+            blurred_mask = cv2.GaussianBlur(mask, (5, 5), 0)
+            adaptive_threshold = cv2.adaptiveThreshold(blurred_mask, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
             
             # -> Erosion ve Dilation işlemleri
             kernel = np.ones((5, 5), np.uint8)
-            erosion = cv2.erode(mask, kernel, iterations=self.erosion)
+            erosion = cv2.erode(adaptive_threshold, kernel, iterations=self.erosion)
             dilation = cv2.dilate(erosion, kernel, iterations=self.dilation)
             
+            # -> Maskelenmiş ve işlenmiş frame'i QLabel'a yazdırma
+            masked_vf = cv2.bitwise_and(frame, frame, mask=dilation)
+            masked_vf = cv2.cvtColor(masked_vf, cv2.COLOR_BGR2RGB)
+            masked_vf = cv2.resize(masked_vf, (391, 281))
+            masked_vf = QImage(masked_vf, masked_vf.shape[1], masked_vf.shape[0], masked_vf.strides[0], QImage.Format_RGB888)
             self.pixmapMasked.emit(masked_vf)
-                        
+            
             # -> Contour detection
             contours, _ = cv2.findContours(dilation, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
             for cnt in contours:
                 area = cv2.contourArea(cnt)
-                if area > self.min_contour and area < self.max_contour:
-                    # -> yuvarlaklık kontrolü
+                if self.min_contour < area < self.max_contour:
+                    # -> Yuvarlaklık kontrolü
                     perimeter = cv2.arcLength(cnt, True)
                     if perimeter == 0:
                         continue
                     circularity = 4 * np.pi * (area / (perimeter ** 2))
-                    if 0.7 < circularity <= 1.2:  # -> Yuvarlaklık değeri 0.7 ile 1.2 arasında olanları al
+                    
+                    # -> Yuvarlaklık değeri 0.7 ile 1.2 arasında ise daire kabul et
+                    if 0.7 < circularity <= 1.2:
                         (x, y), r = cv2.minEnclosingCircle(cnt)
                         center = (int(x), int(y))
                         r = int(r)
+                        
+                        # -> daire çiz
                         frame = cv2.circle(frame, center, r, (0, 255, 0), 2)
+                        frame = cv2.rectangle(frame, (int(x - r), int(y - r)), (int(x + r), int(y + r)), (255, 0, 0), 2)
             
-            # -> blob detection işlemlerini taşıyan frame'i QLabel'a yazdırma
+            # -> Blob detection işlemlerini taşıyan frame'i QLabel'a yazdırma
             blob_vf = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             blob_vf = cv2.resize(blob_vf, (391, 281))
             blob_vf = QImage(blob_vf, blob_vf.shape[1], blob_vf.shape[0], blob_vf.strides[0], QImage.Format_RGB888)
             self.pixmapBlob.emit(blob_vf)
-            
     
     def stop(self):
         self.quit()
