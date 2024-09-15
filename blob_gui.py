@@ -300,6 +300,12 @@ class Ui_MainWindow(object):
                                    self.uppersat_slider.value(), self.lowerval_slider.value(), self.upperval_slider.value(),
                                    self.erosion_slider.value(), self.dilation_slider.value(), self.mincontour_slider.value(),
                                    self.maxcontour_slider.value(), self.radius_slider.value())
+        
+        self.videothread.pixmapOriginal.connect(self.update_original)
+        self.videothread.start()
+        
+    def update_original(self, image):
+        self.original_vf.setPixmap(QPixmap.fromImage(image))
 
     def retranslateUi(self, MainWindow):
         MainWindow.setWindowTitle(QCoreApplication.translate("MainWindow", u"MainWindow", None))
@@ -371,7 +377,17 @@ class video_thread(QThread):
         self.radius = radius
         
     def run(self):
-        pass
+        cap = cv2.VideoCapture(0)
+        if not cap.isOpened():
+            print("Kamera açılamadı")
+            return
+        while cap.isOpened:
+            ret, frame = cap.read()
+            
+            original_vf = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            original_vf = cv2.resize(original_vf, (391, 281))
+            original_vf = QImage(original_vf, original_vf.shape[1], original_vf.shape[0], original_vf.strides[0], QImage.Format_RGB888)
+            self.pixmapOriginal.emit(original_vf)
     
     def stop(self):
         self.quit()
