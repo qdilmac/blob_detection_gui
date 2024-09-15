@@ -306,6 +306,26 @@ class Ui_MainWindow(object):
         self.videothread.pixmapBlob.connect(self.update_blob)
         self.videothread.start()
         
+        # -> Slider değerlerini thread içerisinde güncelleme
+        self.lowerhue_slider.valueChanged.connect(self.update_video_thread_params)
+        self.upperhue_slider.valueChanged.connect(self.update_video_thread_params)
+        self.lowersat_slider.valueChanged.connect(self.update_video_thread_params)
+        self.uppersat_slider.valueChanged.connect(self.update_video_thread_params)
+        self.lowerval_slider.valueChanged.connect(self.update_video_thread_params)
+        self.upperval_slider.valueChanged.connect(self.update_video_thread_params)
+        self.erosion_slider.valueChanged.connect(self.update_video_thread_params)
+        self.dilation_slider.valueChanged.connect(self.update_video_thread_params)
+        self.mincontour_slider.valueChanged.connect(self.update_video_thread_params)
+        self.maxcontour_slider.valueChanged.connect(self.update_video_thread_params)
+        self.radius_slider.valueChanged.connect(self.update_video_thread_params)
+
+    def update_video_thread_params(self):
+        self.videothread.set_parameters(self.lowerhue_slider.value(), self.upperhue_slider.value(), self.lowersat_slider.value(),
+                                        self.uppersat_slider.value(), self.lowerval_slider.value(), self.upperval_slider.value(),
+                                        self.erosion_slider.value(), self.dilation_slider.value(), self.mincontour_slider.value(),
+                                        self.maxcontour_slider.value(), self.radius_slider.value())
+
+        
     def update_original(self, image):
         self.original_vf.setPixmap(QPixmap.fromImage(image))
         
@@ -372,6 +392,10 @@ class video_thread(QThread):
     
     def __init__(self, lower_hue, upper_hue, lower_sat, upper_sat, lower_val, upper_val, erosion, dilation, min_contour, max_contour, radius):
         super().__init__()
+        # -> initial parametreleri fonksiyon çağırarak set et
+        self.set_parameters(lower_hue, upper_hue, lower_sat, upper_sat, lower_val, upper_val, erosion, dilation, min_contour, max_contour, radius)
+
+    def set_parameters(self, lower_hue, upper_hue, lower_sat, upper_sat, lower_val, upper_val, erosion, dilation, min_contour, max_contour, radius):
         self.lower_hue = lower_hue
         self.upper_hue = upper_hue
         self.lower_sat = lower_sat
@@ -383,6 +407,8 @@ class video_thread(QThread):
         self.min_contour = min_contour
         self.max_contour = max_contour
         self.radius = radius
+        # -> debug, açık istemiyorsan yorum satırına al
+        print(f"Parametreler Güncellendi: {self.lower_hue}, {self.upper_hue}, {self.lower_sat}, {self.upper_sat}, {self.lower_val}, {self.upper_val}, {self.erosion}, {self.dilation}, {self.min_contour}, {self.max_contour}, {self.radius}")
         
     def run(self):
         cap = cv2.VideoCapture(0)
