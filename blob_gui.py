@@ -303,6 +303,7 @@ class Ui_MainWindow(object):
         
         self.videothread.pixmapOriginal.connect(self.update_original)
         self.videothread.pixmapMasked.connect(self.update_masked)
+        self.videothread.pixmapBlob.connect(self.update_blob)
         self.videothread.start()
         
     def update_original(self, image):
@@ -310,6 +311,9 @@ class Ui_MainWindow(object):
         
     def update_masked(self, image):
         self.masked_vf.setPixmap(QPixmap.fromImage(image))
+    
+    def update_blob(self, image):
+        self.blob_vf.setPixmap(QPixmap.fromImage(image))
 
     def retranslateUi(self, MainWindow):
         MainWindow.setWindowTitle(QCoreApplication.translate("MainWindow", u"MainWindow", None))
@@ -403,7 +407,35 @@ class video_thread(QThread):
             masked_vf = cv2.cvtColor(masked_vf, cv2.COLOR_BGR2RGB)
             masked_vf = cv2.resize(masked_vf, (391, 281))
             masked_vf = QImage(masked_vf, masked_vf.shape[1], masked_vf.shape[0], masked_vf.strides[0], QImage.Format_RGB888)
+            
+            # -> Erosion ve Dilation işlemleri
+            kernel = np.ones((5, 5), np.uint8)
+            erosion = cv2.erode(mask, kernel, iterations=self.erosion)
+            dilation = cv2.dilate(erosion, kernel, iterations=self.dilation)
+            
             self.pixmapMasked.emit(masked_vf)
+                        
+            # -> Contour detection
+            contours, _ = cv2.findContours(dilation, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+            for cnt in contours:
+                area = cv2.contourArea(cnt)
+                if area > self.min_contour and area < self.max_contour:
+                    # -> yuvarlaklık kontrolü
+                    perimeter = cv2.arcLength(cnt, True)
+                    if perimeter == 0:
+                        continue
+                    circularity = 4 * np.pi * (area / (perimeter ** 2))
+                    if 0.7 < circularity <= 1.2:  # -> Yuvarlaklık değeri 0.7 ile 1.2 arasında olanları al
+                        (x, y), r = cv2.minEnclosingCircle(cnt)
+                        center = (int(x), int(y))
+                        r = int(r)
+                        frame = cv2.circle(frame, center, r, (0, 255, 0), 2)
+            
+            # -> blob detection işlemlerini taşıyan frame'i QLabel'a yazdırma
+            blob_vf = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            blob_vf = cv2.resize(blob_vf, (391, 281))
+            blob_vf = QImage(blob_vf, blob_vf.shape[1], blob_vf.shape[0], blob_vf.strides[0], QImage.Format_RGB888)
+            self.pixmapBlob.emit(blob_vf)
             
     
     def stop(self):
