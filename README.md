@@ -14,6 +14,11 @@ This simple GUI enables me to try/test different things without needing to be ch
 - Dynamic Value Adjustments: Allows real-time adjustments of values to fine-tune detection.
 - Threading: Uses QThread for video capturing and processing to not freeze up value adjustments or main gui.
 
+
+## Showcase
+![first phase testing](img/image.png)
+- First day tests, detection fine tuning is not great for now. Will be looking into algorithms and what paramateres actually do.
+
 ## Requirements
 - For requirements install requirements.txt
 ```
