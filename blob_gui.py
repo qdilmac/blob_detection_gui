@@ -343,6 +343,35 @@ class Ui_MainWindow(object):
         self.radius_valuelabel.setText(QCoreApplication.translate("MainWindow", u"NaN", None))
     # retranslateUi
     
+# -> Kameradan görüntü alıp üç farklı <isim>_vf QLabel'ına yazdıracak olan thread, blob detection işlemlerini vs de yapacak
+
+class video_thread(QThread):
+    pixmapOriginal = Signal(QImage)
+    pixmapMasked = Signal(QImage)
+    pixmapBlob = Signal(QImage)
+    
+    def __init__(self, lower_hue, upper_hue, lower_sat, upper_sat, lower_val, upper_val, erosion, dilation, min_contour, max_contour, radius):
+        super().__init__()
+        self.lower_hue = lower_hue
+        self.upper_hue = upper_hue
+        self.lower_sat = lower_sat
+        self.upper_sat = upper_sat
+        self.lower_val = lower_val
+        self.upper_val = upper_val
+        self.erosion = erosion
+        self.dilation = dilation
+        self.min_contour = min_contour
+        self.max_contour = max_contour
+        self.radius = radius
+        
+    def run(self):
+        pass
+    
+    def stop(self):
+        self.quit()
+        self.wait()
+    
+    
 def main():
     app = QApplication(sys.argv)
     MainWindow = QMainWindow()
