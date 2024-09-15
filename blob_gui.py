@@ -282,7 +282,7 @@ class Ui_MainWindow(object):
         QMetaObject.connectSlotsByName(MainWindow)
     # setupUi
     
-    # -> Sldier değerlerini alıp değer label'larına yazdırma
+        # -> Slider değerlerini alıp değer label'larına yazdırma
         self.lowerhue_slider.valueChanged.connect(self.lowerhue_valuelabel.setNum)
         self.upperhue_slider.valueChanged.connect(self.upperhue_valuelabel.setNum)
         self.lowersat_slider.valueChanged.connect(self.lowersat_valuelabel.setNum)
@@ -294,6 +294,12 @@ class Ui_MainWindow(object):
         self.mincontour_slider.valueChanged.connect(self.mincontour_valuelabel.setNum)
         self.maxcontour_slider.valueChanged.connect(self.maxcontour_valuelabel.setNum)
         self.radius_slider.valueChanged.connect(self.radius_valuelabel.setNum)
+        
+        # -> Video thread'i başlatma
+        self.videothread = video_thread(self.lowerhue_slider.value(), self.upperhue_slider.value(), self.lowersat_slider.value(),
+                                   self.uppersat_slider.value(), self.lowerval_slider.value(), self.upperval_slider.value(),
+                                   self.erosion_slider.value(), self.dilation_slider.value(), self.mincontour_slider.value(),
+                                   self.maxcontour_slider.value(), self.radius_slider.value())
 
     def retranslateUi(self, MainWindow):
         MainWindow.setWindowTitle(QCoreApplication.translate("MainWindow", u"MainWindow", None))
