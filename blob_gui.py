@@ -302,10 +302,14 @@ class Ui_MainWindow(object):
                                    self.maxcontour_slider.value(), self.radius_slider.value())
         
         self.videothread.pixmapOriginal.connect(self.update_original)
+        self.videothread.pixmapMasked.connect(self.update_masked)
         self.videothread.start()
         
     def update_original(self, image):
         self.original_vf.setPixmap(QPixmap.fromImage(image))
+        
+    def update_masked(self, image):
+        self.masked_vf.setPixmap(QPixmap.fromImage(image))
 
     def retranslateUi(self, MainWindow):
         MainWindow.setWindowTitle(QCoreApplication.translate("MainWindow", u"MainWindow", None))
@@ -384,10 +388,23 @@ class video_thread(QThread):
         while cap.isOpened:
             ret, frame = cap.read()
             
+            # -> Orijinal frame'i QLabel'a yazdırma
             original_vf = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             original_vf = cv2.resize(original_vf, (391, 281))
             original_vf = QImage(original_vf, original_vf.shape[1], original_vf.shape[0], original_vf.strides[0], QImage.Format_RGB888)
             self.pixmapOriginal.emit(original_vf)
+            
+            # -> HSV'ye dönüştürme, maskelenmiş frame'i QLabel'a yazdırma
+            hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+            lower = np.array([self.lower_hue, self.lower_sat, self.lower_val])
+            upper = np.array([self.upper_hue, self.upper_sat, self.upper_val])
+            mask = cv2.inRange(hsv, lower, upper)
+            masked_vf = cv2.bitwise_and(frame, frame, mask=mask)
+            masked_vf = cv2.cvtColor(masked_vf, cv2.COLOR_BGR2RGB)
+            masked_vf = cv2.resize(masked_vf, (391, 281))
+            masked_vf = QImage(masked_vf, masked_vf.shape[1], masked_vf.shape[0], masked_vf.strides[0], QImage.Format_RGB888)
+            self.pixmapMasked.emit(masked_vf)
+            
     
     def stop(self):
         self.quit()
