@@ -18,8 +18,10 @@ This simple GUI enables me to try/test different things without needing to be ch
 ## Showcase
 ![first phase testing](img/image1.png)
 - First day tests, detection fine tuning is not great for now. Will be looking into algorithms and what paramateres actually do.
+
 ![second day testing](img/image2.png)
 - Second day tests, can fine tune to detect a tennis ball. Might add a table into the blank place for some pre-determined values for some items (tennisball, balloons etc.)
+
 ![tennisball values](img/image3.png)
 - Second day tests, roughly enough values for tennisballs. LIGHTING OF THE ROOM/CAMERA VIEW is pretty important for good detection!!!
 
