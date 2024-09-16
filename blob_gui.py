@@ -384,7 +384,6 @@ class Ui_MainWindow(object):
     # retranslateUi
     
 # -> Kameradan görüntü alıp üç farklı <isim>_vf QLabel'ına yazdıracak olan thread, blob detection işlemlerini vs de yapacak
-
 class video_thread(QThread):
     pixmapOriginal = Signal(QImage)
     pixmapMasked = Signal(QImage)
@@ -415,68 +414,70 @@ class video_thread(QThread):
         if not cap.isOpened():
             print("Kamera açılamadı")
             return
-        while cap.isOpened:
+        
+        while cap.isOpened():
             ret, frame = cap.read()
-            
-            # -> Orijinal frame'i QLabel'a yazdırma
+            if not ret:
+                continue
+
+            # -> Orijinal video feed'i QLabel'a yazdırma
             original_vf = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             original_vf = cv2.resize(original_vf, (391, 281))
-            original_vf = QImage(original_vf, original_vf.shape[1], original_vf.shape[0], original_vf.strides[0], QImage.Format_RGB888)
-            self.pixmapOriginal.emit(original_vf)
-            
-           # -> HSV'ye dönüştürme
+            original_vf_qt = QImage(original_vf, original_vf.shape[1], original_vf.shape[0], original_vf.strides[0], QImage.Format_RGB888)
+            self.pixmapOriginal.emit(original_vf_qt)
+
+            # -> Orijinal görüntüyü HSV'ye dönüştürme ve maskeleme
             hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
             lower = np.array([self.lower_hue, self.lower_sat, self.lower_val])
             upper = np.array([self.upper_hue, self.upper_sat, self.upper_val])
             mask = cv2.inRange(hsv, lower, upper)
-            
-            # -> Adaptive Thresholding
+
+            # -> Gaussian blur, erosion, dilation işlemleri -> maskeyi daha net hâle getirmek için
             blurred_mask = cv2.GaussianBlur(mask, (5, 5), 0)
-            adaptive_threshold = cv2.adaptiveThreshold(blurred_mask, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
-            
-            # -> Erosion ve Dilation işlemleri
+
             kernel = np.ones((5, 5), np.uint8)
-            erosion = cv2.erode(adaptive_threshold, kernel, iterations=self.erosion)
-            dilation = cv2.dilate(erosion, kernel, iterations=self.dilation)
-            
-            # -> Maskelenmiş ve işlenmiş frame'i QLabel'a yazdırma
-            masked_vf = cv2.bitwise_and(frame, frame, mask=dilation)
+            eroded_mask = cv2.erode(blurred_mask, kernel, iterations=self.erosion)
+            dilated_mask = cv2.dilate(eroded_mask, kernel, iterations=self.dilation)
+
+            # -> Maskeleme sonucunu QLabel'a yazdırma
+            masked_vf = cv2.bitwise_and(frame, frame, mask=dilated_mask)
             masked_vf = cv2.cvtColor(masked_vf, cv2.COLOR_BGR2RGB)
             masked_vf = cv2.resize(masked_vf, (391, 281))
-            masked_vf = QImage(masked_vf, masked_vf.shape[1], masked_vf.shape[0], masked_vf.strides[0], QImage.Format_RGB888)
-            self.pixmapMasked.emit(masked_vf)
-            
-            # -> Contour detection
-            contours, _ = cv2.findContours(dilation, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+            masked_vf_qt = QImage(masked_vf, masked_vf.shape[1], masked_vf.shape[0], masked_vf.strides[0], QImage.Format_RGB888)
+            self.pixmapMasked.emit(masked_vf_qt)
+
+            # -> Contour detection ve blob detection
+            contours, _ = cv2.findContours(dilated_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
             for cnt in contours:
                 area = cv2.contourArea(cnt)
                 if self.min_contour < area < self.max_contour:
-                    # -> Yuvarlaklık kontrolü
                     perimeter = cv2.arcLength(cnt, True)
                     if perimeter == 0:
                         continue
                     circularity = 4 * np.pi * (area / (perimeter ** 2))
-                    
-                    # -> Yuvarlaklık değeri 0.7 ile 1.2 arasında ise daire kabul et
+
+                    # -> belirlenen yuvarlaklık oranı aralığında bir blob tespit edildiyse
                     if 0.7 < circularity <= 1.2:
                         (x, y), r = cv2.minEnclosingCircle(cnt)
                         center = (int(x), int(y))
                         r = int(r)
-                        
-                        # -> daire çiz
+
+                        # -> belirlenen yarıçap aralığında bir blob tespit edildiyse
                         frame = cv2.circle(frame, center, r, (0, 255, 0), 2)
                         frame = cv2.rectangle(frame, (int(x - r), int(y - r)), (int(x + r), int(y + r)), (255, 0, 0), 2)
-            
-            # -> Blob detection işlemlerini taşıyan frame'i QLabel'a yazdırma
+                        
+                        # -> opsiyonel: blob'un contour'unu çizdirme
+                        cv2.drawContours(frame, [cnt], -1, (0, 0, 255), 2)
+
+            # -> Blob detection sonucunu QLabel'a yazdırma
             blob_vf = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             blob_vf = cv2.resize(blob_vf, (391, 281))
-            blob_vf = QImage(blob_vf, blob_vf.shape[1], blob_vf.shape[0], blob_vf.strides[0], QImage.Format_RGB888)
-            self.pixmapBlob.emit(blob_vf)
+            blob_vf_qt = QImage(blob_vf, blob_vf.shape[1], blob_vf.shape[0], blob_vf.strides[0], QImage.Format_RGB888)
+            self.pixmapBlob.emit(blob_vf_qt)
     
     def stop(self):
         self.quit()
         self.wait()
-    
     
 def main():
     app = QApplication(sys.argv)
